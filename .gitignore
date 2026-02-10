@@ -1,7 +1,6 @@
 __pycache__
 data/
 figures/
-dataset/huggingface/
 CLAUDE.md
 .claude/
 *.pdf
