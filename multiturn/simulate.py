@@ -325,12 +325,12 @@ def create_paper_index(cutoff_date, all_papers_dict, all_embeddings, distance_me
 
 def create_initial_state(args):
     """Create initial simulation state from input data."""
-    utils.log(f"Loading data from HuggingFace: {args.hf_repo_id} ({args.split} split)")
+    utils.log(f"Loading data from HuggingFace: {args.hf_repo_id} ({args.calibration_split} split)")
 
     # Load corpus with paper embeddings
     all_papers, sd2publications, paper_index_embeddings = utils.load_corpus(
         hf_repo_id=args.hf_repo_id,
-        split=args.split,
+        split=args.calibration_split,
         embeddings_dir=args.embeddings_dir,
         embedding_type=args.paper_embedding_type,
         load_sd2publications=True
@@ -590,7 +590,7 @@ def save_state(state, args):
 def main():
     parser = argparse.ArgumentParser(description="Simulate scientific literature trajectory")
     parser.add_argument("--hf_repo_id", type=str, default="allenai/prescience", help="HuggingFace repository ID")
-    parser.add_argument("--split", type=str, default="train", choices=["train", "test"], help="Dataset split")
+    parser.add_argument("--calibration_split", type=str, default="train", choices=["train", "test"], help="Dataset split to use as initial corpus for simulation")
     parser.add_argument("--embeddings_dir", type=str, required=True, help="Directory containing embedding files")
     parser.add_argument("--output_dir", type=str, default="data/multiturn/simulated", help="Directory to save simulated output")
     parser.add_argument("--depth", type=int, default=365, help="Number of days to simulate")

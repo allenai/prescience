@@ -160,7 +160,8 @@ def main():
     parser.add_argument("--hf_repo_id", type=str, default="allenai/prescience", help="HuggingFace repo ID")
     parser.add_argument("--split", type=str, default="test", choices=["train", "test"], help="Dataset split to evaluate on")
     parser.add_argument("--train_split", type=str, default="train", choices=["train", "test"], help="Dataset split to train on")
-    parser.add_argument("--embeddings_dir", type=str, required=True, help="Directory containing embedding files")
+    parser.add_argument("--train_embeddings_dir", type=str, default="data/corpus/train", help="Directory containing training split embedding files")
+    parser.add_argument("--test_embeddings_dir", type=str, default="data/corpus/test", help="Directory containing test split embedding files")
     parser.add_argument("--embedding_type", type=str, default="gtr", choices=["gtr", "specter2", "grit"], help="Embedding type")
     parser.add_argument("--use_author_names", action="store_true", help="Include author name embeddings")
     parser.add_argument("--use_author_numbers", action="store_true", help="Include author h-index and citations")
@@ -185,15 +186,15 @@ def main():
     np.random.seed(args.seed)
 
     model_name = build_model_name(args)
-    model_path = os.path.join(args.embeddings_dir, args.train_split, "models", f"{model_name}.pkl")
+    model_path = os.path.join(args.output_dir, "models", f"{model_name}.pkl")
     author_embedding_cache = {}
 
     utils.log(f"Loading training corpus from {args.hf_repo_id} (split={args.train_split})")
-    train_papers, train_dict, train_embeddings, _ = load_corpus_impact(hf_repo_id=args.hf_repo_id, split=args.train_split, embeddings_dir=args.embeddings_dir, embedding_type=args.embedding_type)
+    train_papers, train_dict, train_embeddings, _ = load_corpus_impact(hf_repo_id=args.hf_repo_id, split=args.train_split, embeddings_dir=args.train_embeddings_dir, embedding_type=args.embedding_type)
     utils.log(f"Loaded {len(train_papers)} training papers")
 
     utils.log(f"Loading test corpus from {args.hf_repo_id} (split={args.split})")
-    test_papers, test_dict, test_embeddings, test_metadata = load_corpus_impact(hf_repo_id=args.hf_repo_id, split=args.split, embeddings_dir=args.embeddings_dir, embedding_type=args.embedding_type)
+    test_papers, test_dict, test_embeddings, test_metadata = load_corpus_impact(hf_repo_id=args.hf_repo_id, split=args.split, embeddings_dir=args.test_embeddings_dir, embedding_type=args.embedding_type)
     utils.log(f"Loaded {len(test_papers)} test papers")
 
     utils.log("Creating evaluation instances")
