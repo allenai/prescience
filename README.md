@@ -7,7 +7,7 @@
 [Paper](https://arxiv.org/abs/TODO) | [Dataset](https://huggingface.co/datasets/allenai/prescience)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.8+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 </div>
 
