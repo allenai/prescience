@@ -11,6 +11,7 @@ def get_preexisting_publications_for_author(author_id, cutoff_date, sd2publicati
     if author_pubs is None:
         return []
 
+    author_pubs = [p for p in author_pubs if p in all_papers_dict]
     pub_dates = [all_papers_dict[p]["date"] for p in author_pubs]
     idx = bisect_left(pub_dates, cutoff_date)
     return author_pubs[:idx]

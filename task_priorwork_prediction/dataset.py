@@ -13,6 +13,7 @@ def get_preexisting_publications_for_author(author_id, cutoff_date, sd2publicati
     if author_pubs is None:
         return []
 
+    author_pubs = [p for p in author_pubs if p in all_papers_dict]
     pub_dates = [all_papers_dict[p]["date"] for p in author_pubs]
     idx = bisect_left(pub_dates, cutoff_date)
     return author_pubs[:idx]
@@ -21,7 +22,7 @@ def get_preexisting_publications_for_author(author_id, cutoff_date, sd2publicati
 def get_cited_references_for_author(author_id, cutoff_date, num_recent_papers, sd2publications, all_papers_dict):
     """Get papers cited by an author in their recent publications (with key_references) before cutoff_date."""
     author_pubs = get_preexisting_publications_for_author(author_id, cutoff_date, sd2publications, all_papers_dict)
-    pubs_with_refs = [cid for cid in author_pubs if len(all_papers_dict[cid]["key_references"]) > 0]
+    pubs_with_refs = [cid for cid in author_pubs if len(all_papers_dict[cid].get("key_references") or []) > 0]
     recent_pubs = pubs_with_refs[-num_recent_papers:]
 
     cited_corpus_ids = []
@@ -39,7 +40,7 @@ def create_evaluation_instances(all_papers, sd2publications, all_papers_dict):
     def has_pub_with_refs(author_id, date):
         author_pubs = get_preexisting_publications_for_author(author_id, date, sd2publications, all_papers_dict)
         for corpus_id in author_pubs:
-            if len(all_papers_dict[corpus_id]["key_references"]) > 0:
+            if len(all_papers_dict[corpus_id].get("key_references") or []) > 0:
                 return True
         return False
 

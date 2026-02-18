@@ -93,7 +93,7 @@ def main():
             pass
 
     output_path = os.path.join(args.output_dir, f"generations.paraphrased_gold-{args.model}.json")
-    utils.save_json(query_papers, output_path, overwrite=True, metadata={"args": vars(args)})
+    utils.save_json(query_papers, output_path, overwrite=True, metadata=utils.update_metadata([], args))
     utils.log(f"Saved {len(query_papers)} generations to {output_path}")
 
 

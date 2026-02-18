@@ -133,11 +133,11 @@ def main():
 
         processed = i + len(batch_records)
         if processed >= next_checkpoint:
-            utils.save_json(query_papers, output_path, metadata={"args": vars(args)}, overwrite=True)
+            utils.save_json(query_papers, output_path, metadata=utils.update_metadata([], args), overwrite=True)
             utils.log(f"Checkpoint: saved {processed} predictions")
             next_checkpoint += args.save_every
 
-    utils.save_json(query_papers, output_path, metadata={"args": vars(args)}, overwrite=True)
+    utils.save_json(query_papers, output_path, metadata=utils.update_metadata([], args), overwrite=True)
     utils.log(f"Saved {len(query_papers)} predictions to {output_path}")
 
 

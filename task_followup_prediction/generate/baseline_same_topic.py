@@ -56,7 +56,7 @@ def main():
         rec.update(prediction)
 
     output_path = os.path.join(args.output_dir, "generations.same_topic.json")
-    utils.save_json(query_papers, output_path, overwrite=True, metadata={"args": vars(args)})
+    utils.save_json(query_papers, output_path, overwrite=True, metadata=utils.update_metadata([], args))
     utils.log(f"Saved {len(query_papers)} generations to {output_path}")
 
 
