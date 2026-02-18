@@ -1,7 +1,5 @@
 pytz
-peft==0.17.1
 nltk
-mteb==1.12.5
 torch
 scipy
 numpy
@@ -20,12 +18,10 @@ anthropic
 setuptools
 sqlalchemy
 bert-score
-xlsxwriter
 matplotlib
 accelerate
 rouge_score
 torchvision
 scikit-learn
 transformers>=4.51.3,<4.52.0
-huggingface_hub==0.25.0
 sentence_transformers==4.0.2

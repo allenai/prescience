@@ -2,7 +2,6 @@ pytz
 shap
 peft==0.17.1
 nltk
-mteb==1.12.5
 torch
 scipy
 numpy
@@ -21,7 +20,6 @@ anthropic
 setuptools
 sqlalchemy
 bert-score
-xlsxwriter
 matplotlib
 accelerate
 statsmodels
