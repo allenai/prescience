@@ -38,6 +38,7 @@ def load_model_and_tokenizer(model_key, lora_config=None):
 
     if lora_config is not None:
         model = get_peft_model(model, lora_config)
+        model.enable_input_require_grads()
         model.print_trainable_parameters()
 
     return model, tokenizer
