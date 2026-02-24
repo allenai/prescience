@@ -5,7 +5,8 @@ import random
 import time
 import json
 import concurrent.futures as cf
-from collections import Counter
+from collections import Counter, defaultdict
+from datetime import datetime
 
 from tqdm import tqdm
 import openai
@@ -174,6 +175,35 @@ def classify_jobs(jobs, client, model, labels, max_workers, desc="Classifying"):
     return results
 
 
+def stratified_sample(papers, samples_per_week):
+    """Stratified sample of papers by ISO week."""
+    weekly = defaultdict(list)
+    for paper in papers:
+        dt = datetime.strptime(paper["date"], "%Y-%m-%d")
+        iso_year, iso_week, _ = dt.isocalendar()
+        weekly[(iso_year, iso_week)].append(paper)
+    sampled = []
+    for key in sorted(weekly):
+        week_papers = weekly[key]
+        n = min(samples_per_week, len(week_papers))
+        sampled.extend(RNG.sample(week_papers, n))
+    print(f"Stratified sample: {len(sampled)} papers from {len(weekly)} weeks ({samples_per_week}/week).")
+    return sampled
+
+
+def build_jobs(papers, system_prompt, shots, exclude_ids, desc):
+    """Build classification jobs for a list of papers."""
+    jobs = []
+    for paper in tqdm(papers, desc=desc):
+        if paper["corpus_id"] in exclude_ids:
+            continue
+        title = paper["title"] if "title" in paper else ""
+        abstract = paper["abstract"] if "abstract" in paper else ""
+        messages = build_query_messages(title, abstract, system_prompt, shots)
+        jobs.append((paper["corpus_id"], messages))
+    return jobs
+
+
 def main():
     parser = argparse.ArgumentParser(description="Classify synthetic target papers into primary arXiv categories using OpenAI.")
     parser.add_argument("--hf_repo_id", type=str, default="allenai/prescience", help="HuggingFace repo (natural corpus)")
@@ -185,6 +215,8 @@ def main():
     parser.add_argument("--shots_per_category", type=int, default=5, help="Few-shot examples per natural category")
     parser.add_argument("--max_fewshot_categories", type=int, default=12, help="Maximum number of natural categories to include in few-shot prompts")
     parser.add_argument("--max_papers", type=int, default=0, help="Optional limit on number of synthetic target papers to classify (0 means all)")
+    parser.add_argument("--samples_per_week", type=int, default=0, help="Stratified sample size per ISO week (0 means classify all)")
+    parser.add_argument("--classify_natural", action="store_true", help="Also classify natural target papers using the same LLM pipeline")
     args = parser.parse_args()
 
     all_papers_nat, _, _ = utils.load_corpus(hf_repo_id=args.hf_repo_id, split=args.split, embeddings_dir=None, embedding_type=None, load_sd2publications=False)
@@ -210,33 +242,41 @@ def main():
     shot_labels = []
     if args.max_fewshot_categories > 0:
         shot_labels = [label for label, _ in category_counts.most_common(args.max_fewshot_categories)]
-    shots, _ = sample_fewshots(natural_targets, shot_labels, args.shots_per_category)
+    shots, fewshot_ids = sample_fewshots(natural_targets, shot_labels, args.shots_per_category)
     print(f"Using {len(shot_labels)} few-shot categories with {len(shots)} total exemplars.")
 
+    if args.samples_per_week > 0:
+        synthetic_targets = stratified_sample(synthetic_targets, args.samples_per_week)
+        if args.classify_natural:
+            natural_targets = stratified_sample(natural_targets, args.samples_per_week)
+
     system_prompt = build_system_prompt(labels)
-
-    jobs = []
-    for paper in tqdm(synthetic_targets, desc="Preparing classification jobs"):
-        title = paper["title"] if "title" in paper else ""
-        abstract = paper["abstract"] if "abstract" in paper else ""
-        messages = build_query_messages(title, abstract, system_prompt, shots)
-        jobs.append((paper["corpus_id"], messages))
-
-    if not jobs:
-        raise RuntimeError("No synthetic target papers found for classification.")
-
     client = openai.OpenAI()
-    predictions = classify_jobs(jobs, client, args.model, labels, args.max_workers, desc="Classifying synthetic targets")
+
+    # Classify synthetic targets
+    syn_jobs = build_jobs(synthetic_targets, system_prompt, shots, set(), "Preparing synthetic classification jobs")
+    if not syn_jobs:
+        raise RuntimeError("No synthetic target papers found for classification.")
+    syn_predictions = classify_jobs(syn_jobs, client, args.model, labels, args.max_workers, desc="Classifying synthetic targets")
+
+    sampled_suffix = "_sampled" if args.samples_per_week > 0 else ""
+    metadata = utils.update_metadata([], args)
 
     if args.output_path:
-        output_path = args.output_path
+        syn_output_path = args.output_path
     else:
-        output_path = os.path.join("data/multiturn", args.synthetic_dir, f"synthetic_primary_categories_{args.model}.json")
+        syn_output_path = os.path.join("data/multiturn", args.synthetic_dir, f"synthetic_primary_categories_{args.model}{sampled_suffix}.json")
+    utils.save_json(syn_predictions, syn_output_path, metadata=metadata, overwrite=True)
+    print(f"Wrote {len(syn_predictions)} synthetic predictions to {syn_output_path}")
 
-    metadata = utils.update_metadata([], args)
-    utils.save_json(predictions, output_path, metadata=metadata, overwrite=True)
-
-    print(f"Wrote {len(predictions)} predictions to {output_path}")
+    # Classify natural targets
+    if args.classify_natural:
+        nat_jobs = build_jobs(natural_targets, system_prompt, shots, fewshot_ids, "Preparing natural classification jobs")
+        if nat_jobs:
+            nat_predictions = classify_jobs(nat_jobs, client, args.model, labels, args.max_workers, desc="Classifying natural targets")
+            nat_output_path = os.path.join("data/multiturn", args.synthetic_dir, f"natural_primary_categories_{args.model}{sampled_suffix}.json")
+            utils.save_json(nat_predictions, nat_output_path, metadata=metadata, overwrite=True)
+            print(f"Wrote {len(nat_predictions)} natural predictions to {nat_output_path}")
 
 
 if __name__ == "__main__":

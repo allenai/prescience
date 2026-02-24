@@ -11,6 +11,7 @@ import numpy as np
 import utils
 
 OTHER_LABEL = "other"
+PALETTE = ["#0072B2", "#E69F00", "#2CA02C", "#D55E00", "#9467bd", "#CC79A7", "#888888"]
 
 
 def partition_by_date(papers):
@@ -84,6 +85,7 @@ def main():
     parser.add_argument("--predictions_path", type=str, default=None, help="Optional explicit path to synthetic topic predictions JSON")
     parser.add_argument("--top_k_topics", type=int, default=6, help="Number of most common topics to display (plus 'other')")
     parser.add_argument("--output_path", type=str, default="figures/multiturn/topic_distribution_over_time.png", help="Path to save the figure")
+    parser.add_argument("--sampled", action="store_true", help="Use LLM-classified topics for both natural and synthetic (for sampled predictions)")
     args = parser.parse_args()
 
     all_papers_nat, _, _ = utils.load_corpus(hf_repo_id=args.hf_repo_id, split=args.split, embeddings_dir=None, embedding_type=None, load_sd2publications=False)
@@ -98,19 +100,31 @@ def main():
         if "synthetic" in paper["roles"]
     }
 
-    natural_topic_lookup = compute_topic_lookup_natural(target_nat)
+    sampled_suffix = "_sampled" if args.sampled else ""
+
+    if args.sampled:
+        nat_predictions_path = os.path.join("data/multiturn", args.synthetic_dir, f"natural_primary_categories_{args.model}{sampled_suffix}.json")
+        natural_topic_lookup = load_synthetic_topics(nat_predictions_path)
+        target_nat = {cid: paper for cid, paper in target_nat.items() if cid in natural_topic_lookup}
+        print(f"Using LLM-classified topics for {len(target_nat)} natural papers.")
+    else:
+        natural_topic_lookup = compute_topic_lookup_natural(target_nat)
 
     if args.predictions_path:
         predictions_path = args.predictions_path
     else:
-        predictions_path = os.path.join("data/multiturn", args.synthetic_dir, f"synthetic_primary_categories_{args.model}.json")
+        predictions_path = os.path.join("data/multiturn", args.synthetic_dir, f"synthetic_primary_categories_{args.model}{sampled_suffix}.json")
 
     synthetic_topic_lookup = load_synthetic_topics(predictions_path)
-    missing = [cid for cid in target_syn if cid not in synthetic_topic_lookup]
-    if missing:
-        print(f"Warning: missing synthetic topic predictions for {len(missing)} papers; assigning '{OTHER_LABEL}'.")
-        for cid in missing:
-            synthetic_topic_lookup[cid] = OTHER_LABEL
+    if args.sampled:
+        target_syn = {cid: paper for cid, paper in target_syn.items() if cid in synthetic_topic_lookup}
+        print(f"Using LLM-classified topics for {len(target_syn)} synthetic papers.")
+    else:
+        missing = [cid for cid in target_syn if cid not in synthetic_topic_lookup]
+        if missing:
+            print(f"Warning: missing synthetic topic predictions for {len(missing)} papers; assigning '{OTHER_LABEL}'.")
+            for cid in missing:
+                synthetic_topic_lookup[cid] = OTHER_LABEL
 
     partitioned_nat_daily = partition_by_date(target_nat)
     partitioned_syn_daily = partition_by_date(target_syn)
@@ -131,12 +145,12 @@ def main():
     nat_series, nat_proportions_by_date = compute_topic_proportions(partitioned_nat, natural_topic_lookup, topics)
     syn_series, syn_proportions_by_date = compute_topic_proportions(partitioned_syn, synthetic_topic_lookup, topics)
 
+    plt.rcParams.update({"font.size": 8})
     colors = {}
     for idx, topic in enumerate(topics):
-        colors[topic] = f"C{idx % 10}"
+        colors[topic] = PALETTE[idx % len(PALETTE)]
 
-    fig, axes = plt.subplots(1, 2, figsize=(14, 6), sharey=True)
-    fig.suptitle("Topic distribution (proportion of target papers by week)")
+    fig, axes = plt.subplots(1, 2, figsize=(10, 3.5), sharey=True)
 
     max_value = 0.0
     for topic in topics:
@@ -146,8 +160,8 @@ def main():
     ylim = (0.0, round(upper, 2))
 
     left_ax, right_ax = axes
-    left_ax.set_title("Natural target papers")
-    right_ax.set_title("Synthetic target papers")
+    left_ax.set_title("Natural target papers", fontsize=9, fontweight="bold")
+    right_ax.set_title("Synthetic target papers", fontsize=9, fontweight="bold")
 
     for topic in topics:
         if nat_series[topic]["dates"]:
@@ -156,7 +170,7 @@ def main():
                 nat_series[topic]["values"],
                 label=topic,
                 color=colors[topic],
-                linewidth=1.5,
+                linewidth=1.5, alpha=0.9,
             )
         if syn_series[topic]["dates"]:
             right_ax.plot(
@@ -164,10 +178,10 @@ def main():
                 syn_series[topic]["values"],
                 label=topic,
                 color=colors[topic],
-                linewidth=1.5,
+                linewidth=1.5, alpha=0.9,
             )
 
-    left_ax.set_ylabel("Proportion of target papers")
+    left_ax.set_ylabel("Proportion of target papers", fontsize=8)
     right_ax.set_ylabel("")
 
     nat_dates = sorted({dt for topic in topics for dt in nat_series[topic]["dates"]})
@@ -175,26 +189,27 @@ def main():
 
     for ax, dates in ((left_ax, nat_dates), (right_ax, syn_dates)):
         ax.set_ylim(ylim)
-        ax.set_xlabel("Week starting")
-        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.set_xlabel("Week starting", fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.3, linewidth=0.5)
         if dates:
             step = max(len(dates) // 14, 1)
             ax.set_xticks(dates[::step])
-            ax.tick_params(axis="x", rotation=45)
+            ax.tick_params(axis="x", rotation=45, labelsize=7)
+            ax.tick_params(axis="y", labelsize=7)
             ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
         else:
             ax.set_xticks([])
 
     if left_ax.lines:
-        left_ax.legend()
+        left_ax.legend(fontsize=6, framealpha=0.9)
     if right_ax.lines:
-        right_ax.legend()
+        right_ax.legend(fontsize=6, framealpha=0.9)
 
     output_dir = os.path.dirname(args.output_path) or "."
     os.makedirs(output_dir, exist_ok=True)
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    plt.tight_layout(pad=0.5)
     print(f"Saving figure to {args.output_path}")
-    plt.savefig(args.output_path, dpi=300)
+    plt.savefig(args.output_path, dpi=300, bbox_inches="tight")
     plt.close()
 
     def compute_entropy(proportions_by_date):
@@ -213,26 +228,27 @@ def main():
     nat_entropy_dates, nat_entropy = compute_entropy(nat_proportions_by_date)
     syn_entropy_dates, syn_entropy = compute_entropy(syn_proportions_by_date)
 
-    fig_entropy, ax_entropy = plt.subplots(figsize=(10, 5))
-    ax_entropy.set_title("Entropy of weekly topic distribution")
+    fig_entropy, ax_entropy = plt.subplots(figsize=(5, 3.5))
+    ax_entropy.set_title("Entropy of weekly topic distribution", fontsize=9, fontweight="bold")
     if nat_entropy_dates:
-        ax_entropy.plot(nat_entropy_dates, nat_entropy, label="Natural target papers", color="C0", linewidth=2)
+        ax_entropy.plot(nat_entropy_dates, nat_entropy, label="Natural target papers", color="#0072B2", linewidth=1.5, alpha=0.9)
     if syn_entropy_dates:
-        ax_entropy.plot(syn_entropy_dates, syn_entropy, label="Synthetic target papers", color="C1", linewidth=2)
-    ax_entropy.set_xlabel("Week starting")
-    ax_entropy.set_ylabel("Entropy (nats)")
-    ax_entropy.grid(True, linestyle="--", alpha=0.5)
-    ax_entropy.legend()
+        ax_entropy.plot(syn_entropy_dates, syn_entropy, label="Synthetic target papers", color="#E69F00", linewidth=1.5, alpha=0.9)
+    ax_entropy.set_xlabel("Week starting", fontsize=8)
+    ax_entropy.set_ylabel("Entropy (nats)", fontsize=8)
+    ax_entropy.grid(True, linestyle="--", alpha=0.3, linewidth=0.5)
+    ax_entropy.legend(fontsize=6, framealpha=0.9)
     if nat_entropy_dates or syn_entropy_dates:
         dates_for_ticks = sorted(set(nat_entropy_dates + syn_entropy_dates))
         step = max(len(dates_for_ticks) // 14, 1)
         ax_entropy.set_xticks(dates_for_ticks[::step])
-        ax_entropy.tick_params(axis="x", rotation=45)
+        ax_entropy.tick_params(axis="x", rotation=45, labelsize=7)
+        ax_entropy.tick_params(axis="y", labelsize=7)
         ax_entropy.xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))
     entropy_output_path = args.output_path.replace(".png", "_entropy.png")
     print(f"Saving figure to {entropy_output_path}")
-    fig_entropy.tight_layout()
-    fig_entropy.savefig(entropy_output_path, dpi=300)
+    fig_entropy.tight_layout(pad=0.5)
+    fig_entropy.savefig(entropy_output_path, dpi=300, bbox_inches="tight")
     plt.close(fig_entropy)
 
 
