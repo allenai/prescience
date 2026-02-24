@@ -20,13 +20,13 @@ rouge_score
 scikit-learn
 scipy
 sentence_transformers>=2.7.0,<3.0.0
-setuptools
+setuptools<81
 shap
 sqlalchemy
 statsmodels
 torch
 torchvision
 tqdm
-transformers>=4.38.0,<4.40.0
+transformers>=4.43.0
 wandb
 xgboost
