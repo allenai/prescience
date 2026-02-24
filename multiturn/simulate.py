@@ -459,7 +459,7 @@ def fold_in_papers(state, new_papers, date, args):
                     pub_paper = all_papers_dict[pub_cid]
                     if "synthetic.author.publication_history" not in pub_paper["roles"]:
                         pub_paper["roles"] = sorted(list(set(pub_paper["roles"] + ["synthetic.author.publication_history"])))
-                    for pub_ref in pub_paper["key_references"]:
+                    for pub_ref in pub_paper.get("key_references", []):
                         pub_ref_cid = pub_ref["corpus_id"]
                         if pub_ref_cid in all_papers_dict:
                             pub_ref_paper = all_papers_dict[pub_ref_cid]
@@ -579,7 +579,7 @@ def simulate(state, args):
 def save_state(state, args):
     """Save simulation state to output directory."""
     all_papers = sorted(list(state["all_papers_dict"].values()), key=lambda p: p["date"])
-    metadata = utils.update_metadata(state["all_papers_metadata"], args)
+    metadata = utils.update_metadata([], args)
 
     utils.save_json(all_papers, os.path.join(args.output_dir, "all_papers.json"), metadata=metadata, overwrite=True)
     utils.save_pkl(state["author_index_embeddings"], os.path.join(args.output_dir, f"all_papers.{args.author_embedding_type}_embeddings.pkl"), overwrite=True)
