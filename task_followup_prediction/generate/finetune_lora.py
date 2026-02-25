@@ -102,7 +102,7 @@ def objective(trial, train_dataset, val_dataset, model_key, tokenizer, output_di
     trial_output_dir = os.path.join(output_dir, f"trial_{trial.number}")
     training_args = TrainingArguments(
         output_dir=trial_output_dir, num_train_epochs=num_epochs, per_device_train_batch_size=batch_size, gradient_accumulation_steps=gradient_accumulation_steps,
-        learning_rate=lr, bf16=True, gradient_checkpointing=True, logging_steps=10, eval_strategy="epoch", save_strategy="epoch",
+        learning_rate=lr, bf16=True, gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False}, logging_steps=10, eval_strategy="epoch", save_strategy="epoch",
         load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False, report_to="none", dataloader_num_workers=4,
     )
 
@@ -142,7 +142,7 @@ def train_final_model(train_dataset, val_dataset, model_key, tokenizer, best_par
     final_output_dir = os.path.join(output_dir, "final")
     training_args = TrainingArguments(
         output_dir=final_output_dir, num_train_epochs=num_epochs, per_device_train_batch_size=batch_size, gradient_accumulation_steps=gradient_accumulation_steps,
-        learning_rate=best_params["learning_rate"], bf16=True, gradient_checkpointing=True, logging_steps=10, eval_strategy="epoch", save_strategy="epoch",
+        learning_rate=best_params["learning_rate"], bf16=True, gradient_checkpointing=True, gradient_checkpointing_kwargs={"use_reentrant": False}, logging_steps=10, eval_strategy="epoch", save_strategy="epoch",
         load_best_model_at_end=True, metric_for_best_model="eval_loss", greater_is_better=False, report_to="none",
     )
 
