@@ -4,7 +4,7 @@
 
 **A Benchmark for Forecasting Scientific Contributions**
 
-[Paper](https://arxiv.org/abs/TODO) | [Dataset](https://huggingface.co/datasets/allenai/prescience)
+[Paper](https://arxiv.org/abs/2602.20459) | [Dataset](https://huggingface.co/datasets/allenai/prescience)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
@@ -353,11 +353,14 @@ python3 -m dataset.embeddings.compute_paper_embeddings --split train --embedding
 ## Citation
 
 ```bibtex
-@article{prescience2026,
-  title={PreScience: A Benchmark for Forecasting Scientific Contributions},
-  author={Anirudh Ajith and Amanpreet Singh and Jay DeYoung and Nadav Kunievsky and Austin C. Kozlowski and Oyvind Tafjord and James Evans and Daniel S. Weld and Tom Hope and Doug Downey},
-  journal={arXiv preprint arXiv:TODO},
-  year={2026}
+@misc{ajith2026presciencebenchmarkforecastingscientific,
+      title={PreScience: A Benchmark for Forecasting Scientific Contributions}, 
+      author={Anirudh Ajith and Amanpreet Singh and Jay DeYoung and Nadav Kunievsky and Austin C. Kozlowski and Oyvind Tafjord and James Evans and Daniel S. Weld and Tom Hope and Doug Downey},
+      year={2026},
+      eprint={2602.20459},
+      archivePrefix={arXiv},
+      primaryClass={cs.AI},
+      url={https://arxiv.org/abs/2602.20459}, 
 }
 ```
 
