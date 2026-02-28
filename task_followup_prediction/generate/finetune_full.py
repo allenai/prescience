@@ -129,6 +129,7 @@ def main():
 
     utils.log(f"Loading model {args.model} for full finetuning")
     model, _ = load_model_and_tokenizer(args.model)
+    model.config.use_cache = False
 
     training_args = TrainingArguments(
         output_dir=model_output_dir, num_train_epochs=args.num_train_epochs, per_device_train_batch_size=args.batch_size, gradient_accumulation_steps=args.gradient_accumulation_steps,
