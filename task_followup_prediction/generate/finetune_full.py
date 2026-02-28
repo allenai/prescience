@@ -74,7 +74,8 @@ def get_fsdp_config(model_key):
 
 def main():
     parser = argparse.ArgumentParser(description="Full parameter finetuning for followup prediction")
-    parser.add_argument("--input_dir", type=str, default="data/corpus/train", help="Training corpus directory")
+    parser.add_argument("--hf_repo_id", type=str, default="allenai/prescience", help="HuggingFace dataset repo ID")
+    parser.add_argument("--split", type=str, default="train", choices=["train", "test"], help="Dataset split")
     parser.add_argument("--output_dir", type=str, default="data/task_followup_prediction/train/full_models", help="Output directory for models")
     parser.add_argument("--model", type=str, default="llama3.1-8b", choices=list(MODEL_CONFIGS.keys()), help="Model to finetune")
     parser.add_argument("--val_ratio", type=float, default=0.15, help="Validation split ratio")
@@ -93,8 +94,8 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
 
-    utils.log(f"Loading data from {args.input_dir}")
-    all_papers, metadata = utils.load_json(os.path.join(args.input_dir, "all_papers.json"))
+    utils.log(f"Loading data from {args.hf_repo_id} ({args.split})")
+    all_papers, _, _ = utils.load_corpus(hf_repo_id=args.hf_repo_id, split=args.split, embedding_type=None, load_sd2publications=False)
     all_papers_dict = {p["corpus_id"]: p for p in all_papers}
 
     system_prompt_path = "task_followup_prediction/templates/prediction_system_finetune.prompt"
@@ -151,7 +152,7 @@ def main():
     utils.log(f"Saved full model to {model_path}")
 
     result = {"model": args.model, "learning_rate": args.learning_rate, "weight_decay": args.weight_decay, "model_path": model_path, "train_instances": len(train_instances), "val_instances": len(val_instances)}
-    utils.save_json([result], os.path.join(model_output_dir, "training_summary.json"), metadata=utils.update_metadata(metadata, args))
+    utils.save_json([result], os.path.join(model_output_dir, "training_summary.json"), metadata=utils.update_metadata([], args))
 
     if int(os.environ.get("LOCAL_RANK", 0)) == 0:
         wandb.finish()
