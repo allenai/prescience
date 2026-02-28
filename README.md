@@ -44,6 +44,7 @@ pip install -r requirements.txt
 - `export OPENAI_API_KEY=<your_key>` — required for GPT baselines, LACERScore evaluation, and gold paraphrase generation
 - `export ANTHROPIC_API_KEY=<your_key>` — required for Claude baselines
 - SPECTER2 has dependency conflicts with the main environment; use `requirements_specter2.txt` in a separate environment
+- OLMo 3 fine-tuning requires `transformers>=4.57.0`, which conflicts with GritLM; use `requirements_olmo3.txt` in a separate environment
 
 
 ## Codebase Structure
@@ -173,6 +174,8 @@ python3 -m task_followup_prediction.generate.baseline_paraphrased_gold --split t
 Table 3 reports only fine-tuned (FT) results for LLaMA and OLMo.
 
 **LoRA fine-tuning:**
+
+OLMo 3 fine-tuning requires a separate environment due to transformers version conflicts with GritLM; install with `pip install -r requirements_olmo3.txt`.
 
 ```bash
 # Hyperparameter search + final training
