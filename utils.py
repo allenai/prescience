@@ -17,7 +17,6 @@ from tqdm import tqdm
 from typing import Any
 from collections import defaultdict
 
-from gritlm import GritLM
 from transformers import AutoTokenizer
 from sentence_transformers import SentenceTransformer
 from datasets import load_dataset
@@ -1033,6 +1032,7 @@ def embed_on_gpus(document_list, embedding_type, cache_model=True, return_dict=T
         
     elif embedding_type == "grit":
         if model is None:
+            from gritlm import GritLM
             model = GritLM("GritLM/GritLM-7B", torch_dtype="auto", device_map="auto", mode="embedding")
             log("Caching GritLM model")
             model_tokenizer_cache[embedding_type] = (model, None)
