@@ -21,8 +21,9 @@ def load_model(model_key, adapter_path=None, model_path=None):
     """Load model with optional LoRA adapter or from a local checkpoint."""
     if model_path is not None:
         utils.log(f"Loading model from local path {model_path}")
+        model_name = MODEL_CONFIGS[model_key]
         tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_path, config=model_name, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
     else:
         model_name = MODEL_CONFIGS[model_key]
         tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
