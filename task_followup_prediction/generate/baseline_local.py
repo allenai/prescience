@@ -17,11 +17,16 @@ MODEL_CONFIGS = {
 }
 
 
-def load_model(model_key, adapter_path=None):
-    """Load model with optional LoRA adapter."""
-    model_name = MODEL_CONFIGS[model_key]
-    tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
-    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
+def load_model(model_key, adapter_path=None, model_path=None):
+    """Load model with optional LoRA adapter or from a local checkpoint."""
+    if model_path is not None:
+        utils.log(f"Loading model from local path {model_path}")
+        tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
+    else:
+        model_name = MODEL_CONFIGS[model_key]
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.bfloat16, device_map="auto", trust_remote_code=True)
 
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
@@ -94,6 +99,7 @@ def main():
     parser.add_argument("--output_dir", type=str, default="data/task_followup_prediction/test/generations", help="Output directory")
     parser.add_argument("--model", type=str, default="llama3.1-8b", choices=list(MODEL_CONFIGS.keys()), help="Model to use")
     parser.add_argument("--adapter_path", type=str, default=None, help="Path to LoRA adapter (None for vanilla)")
+    parser.add_argument("--model_path", type=str, default=None, help="Path to local model checkpoint (overrides --model for loading)")
     parser.add_argument("--max_query_papers", type=int, default=5000, help="Maximum papers to evaluate")
     parser.add_argument("--batch_size", type=int, default=4, help="Inference batch size")
     parser.add_argument("--max_new_tokens", type=int, default=1000, help="Maximum new tokens to generate")
@@ -111,9 +117,9 @@ def main():
     utils.log(f"Using {len(FEWSHOT_EXAMPLES)} few-shot examples in multi-turn format")
 
     utils.log(f"Loading model {args.model}")
-    model, tokenizer = load_model(args.model, args.adapter_path)
+    model, tokenizer = load_model(args.model, args.adapter_path, args.model_path)
 
-    mode = "lora" if args.adapter_path else "vanilla"
+    mode = "finetuned" if args.model_path else ("lora" if args.adapter_path else "vanilla")
     output_filename = f"generations.{args.model}.{mode}.json"
     output_path = os.path.join(args.output_dir, output_filename)
     os.makedirs(args.output_dir, exist_ok=True)
