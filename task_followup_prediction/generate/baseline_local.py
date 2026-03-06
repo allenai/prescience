@@ -8,7 +8,7 @@ from peft import PeftModel
 from tqdm import tqdm
 
 import utils
-from task_followup_prediction.dataset import get_query_papers, create_messages_local
+from task_followup_prediction.dataset import get_query_papers, create_messages_local, create_messages
 from task_followup_prediction.templates.fewshot_examples import FEWSHOT_EXAMPLES
 
 MODEL_CONFIGS = {
@@ -112,11 +112,15 @@ def main():
     all_papers_dict = {p["corpus_id"]: p for p in all_papers}
     query_papers = get_query_papers(all_papers, max_papers=args.max_query_papers)
 
-    with open("task_followup_prediction/templates/prediction_system_local.prompt", "r") as f:
+    if args.model_path is not None:
+        system_prompt_path = "task_followup_prediction/templates/prediction_system_finetune.prompt"
+    else:
+        system_prompt_path = "task_followup_prediction/templates/prediction_system_local.prompt"
+    with open(system_prompt_path, "r") as f:
         system_prompt = f.read()
 
     utils.log(f"Evaluating {len(query_papers)} papers with batch_size={args.batch_size}")
-    utils.log(f"Using {len(FEWSHOT_EXAMPLES)} few-shot examples in multi-turn format")
+    utils.log(f"Using system prompt: {system_prompt_path}")
 
     utils.log(f"Loading model {args.model}")
     model, tokenizer = load_model(args.model, args.adapter_path, args.model_path)
@@ -130,7 +134,10 @@ def main():
     next_checkpoint = args.save_every
     for i in tqdm(range(0, len(query_papers), args.batch_size), desc="Generating"):
         batch_records = query_papers[i:i + args.batch_size]
-        batch_messages = [create_messages_local(r, system_prompt, all_papers_dict, FEWSHOT_EXAMPLES) for r in batch_records]
+        if args.model_path is not None:
+            batch_messages = [create_messages_local(r, system_prompt, all_papers_dict, [], reasoning_trace="none") for r in batch_records]
+        else:
+            batch_messages = [create_messages_local(r, system_prompt, all_papers_dict, FEWSHOT_EXAMPLES) for r in batch_records]
         results = generate_batch(model, tokenizer, batch_messages, args.model, args.max_new_tokens)
 
         for record, result in zip(batch_records, results):
