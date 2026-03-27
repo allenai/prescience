@@ -133,7 +133,8 @@ def main():
         system_prompt = f.read()
 
     # Shard query papers across GPUs (interleaved for balanced distribution)
-    query_papers_local = query_papers[rank::world_size]
+    # Use deep copies so mutations don't affect the original list
+    query_papers_local = [dict(query_papers[i]) for i in range(rank, len(query_papers), world_size)]
     if is_main:
         utils.log(f"Evaluating {len(query_papers)} papers across {world_size} GPU(s) ({len(query_papers_local)} per GPU), batch_size={args.batch_size}")
         utils.log(f"Using system prompt: {system_prompt_path}")
@@ -169,26 +170,29 @@ def main():
         if world_size == 1:
             processed = i + len(batch_records)
             if processed >= next_checkpoint:
-                utils.save_json(query_papers, output_path, metadata=utils.update_metadata([], args), overwrite=True)
+                utils.save_json(query_papers_local, output_path, metadata=utils.update_metadata([], args), overwrite=True)
                 utils.log(f"Checkpoint: saved {processed} predictions")
                 next_checkpoint += args.save_every
 
     # Gather results from all GPUs
     if world_size > 1:
+        if is_main:
+            utils.log(f"Gathering results from {world_size} GPUs...")
         all_shards = [None] * world_size
         dist.all_gather_object(all_shards, query_papers_local)
         if is_main:
             # Interleave shards back to original order (reverse of rank::world_size sharding)
-            query_papers = []
+            query_papers_local = []
             max_shard_len = max(len(s) for s in all_shards)
             for i in range(max_shard_len):
                 for shard in all_shards:
                     if i < len(shard):
-                        query_papers.append(shard[i])
+                        query_papers_local.append(shard[i])
+            utils.log(f"Gathered {len(query_papers_local)} results")
 
     if is_main:
-        utils.save_json(query_papers, output_path, metadata=utils.update_metadata([], args), overwrite=True)
-        utils.log(f"Saved {len(query_papers)} predictions to {output_path}")
+        utils.save_json(query_papers_local, output_path, metadata=utils.update_metadata([], args), overwrite=True)
+        utils.log(f"Saved {len(query_papers_local)} predictions to {output_path}")
 
     if world_size > 1:
         dist.destroy_process_group()
