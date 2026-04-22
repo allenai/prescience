@@ -16,6 +16,7 @@ from task_followup_prediction.dataset import create_evaluation_instances, create
 MODEL_CONFIGS = {
     "olmo3-7b": {"model_name": "allenai/Olmo-3-7B-Instruct", "fsdp_layer_cls": "Olmo3DecoderLayer"},
     "llama3.1-8b": {"model_name": "meta-llama/Llama-3.1-8B-Instruct", "fsdp_layer_cls": "LlamaDecoderLayer"},
+    "qwen3-8b": {"model_name": "Qwen/Qwen3-8B", "fsdp_layer_cls": "Qwen3DecoderLayer"},
 }
 
 
@@ -31,11 +32,12 @@ def load_model_and_tokenizer(model_key):
 
 def tokenize_instance(example, tokenizer, model_key, max_length=4096):
     """Tokenize a single training instance with completion-only label masking."""
-    formatted = tokenizer.apply_chat_template(example["messages"], tokenize=False, add_generation_prompt=False)
+    chat_kwargs = {"enable_thinking": False} if model_key.startswith("qwen3") else {}
+    formatted = tokenizer.apply_chat_template(example["messages"], tokenize=False, add_generation_prompt=False, **chat_kwargs)
     tokenized = tokenizer(formatted, truncation=True, max_length=max_length, padding=False, return_tensors=None)
 
     # Tokenize prompt only (without assistant response) to find where completion starts
-    prompt_formatted = tokenizer.apply_chat_template(example["messages"][:-1], tokenize=False, add_generation_prompt=True)
+    prompt_formatted = tokenizer.apply_chat_template(example["messages"][:-1], tokenize=False, add_generation_prompt=True, **chat_kwargs)
     prompt_length = len(tokenizer(prompt_formatted, truncation=True, max_length=max_length, padding=False, return_tensors=None)["input_ids"])
 
     # Mask prompt tokens in labels so loss is only on the completion
