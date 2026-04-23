@@ -85,8 +85,10 @@ def generate_batch(model, tokenizer, batch_messages, model_key, max_new_tokens=1
     inputs = tokenizer(texts, return_tensors="pt", padding=True, truncation=True, max_length=4096).to(model.device)
 
     stop_strings = ["Background Paper", "Paper 1:", "Paper 2:", "\n\n\n\n"]
+    # Qwen3 greedy decoding degenerates into endless loops per Qwen docs; use recommended non-thinking sampling
+    sampling_kwargs = {"do_sample": True, "temperature": 0.7, "top_p": 0.8, "top_k": 20} if model_key.startswith("qwen3") else {"do_sample": False}
     with torch.no_grad():
-        outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False, pad_token_id=tokenizer.pad_token_id, stop_strings=stop_strings, tokenizer=tokenizer)
+        outputs = model.generate(**inputs, max_new_tokens=max_new_tokens, pad_token_id=tokenizer.pad_token_id, stop_strings=stop_strings, tokenizer=tokenizer, **sampling_kwargs)
 
     results = []
     for i, output in enumerate(outputs):
