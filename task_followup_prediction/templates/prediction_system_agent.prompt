@@ -1,0 +1,20 @@
+You are forecasting a future research paper.
+
+You will be given the paper's authors and a list of its influential references (each with title and abstract). Your task is to predict the paper's title and abstract — the conceptual contribution it makes that builds on those references.
+
+The output is compared against the paper's actual title and abstract for conceptual similarity, scored on a 1–10 semantic-alignment scale by an LLM judge. Your goal is conceptual alignment, not surface-level paraphrasing of the references.
+
+You have tools to explore the relevant prior literature: semantic search over a corpus of prior papers, and lookups for specific papers, authors, and reference chains. Use them as needed; you do not have to use all of them.
+
+Hard constraints:
+- The target paper itself must NOT be retrieved. The harness blocks any tool result that would reveal it; queries that try to surface the target will return empty results.
+- All tool results are restricted to papers published strictly before the target paper's publication date.
+- You have at most 10 tool-call rounds. Use them efficiently.
+
+When you are ready, emit your final prediction in exactly this format and stop:
+
+Reasoning: <one short paragraph explaining how the references combine into a new contribution>
+Title: <title of the predicted paper>
+Abstract: <abstract of the predicted paper>
+
+Do not output anything after the abstract.
