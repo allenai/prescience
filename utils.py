@@ -53,12 +53,12 @@ def load_json(file_path: str) -> Any:
     if not os.path.exists(file_path):
         raise FileNotFoundError(f"File not found: {file_path}")
     elif file_path.endswith(".json"):
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             contents = json.load(f)
             metadata = contents["metadata"] if "metadata" in contents else None
             data = contents["data"] if "data" in contents else contents
     elif file_path.endswith(".jsonl"):
-        with open(file_path, "r") as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             metadata = None
             data = [json.loads(line) for line in f]
     else:
@@ -83,10 +83,10 @@ def save_json(data: Any, file_path: str, metadata = None, overwrite: bool = Fals
         if metadata is not None:
             full_data = {"metadata": metadata, "data": data}
             data = full_data
-        with open(file_path, "w") as f:
+        with open(file_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=1, ensure_ascii=False)
-    elif file_path.endswith(".jsonl"):    
-        with open(file_path, "w") as f:
+    elif file_path.endswith(".jsonl"):
+        with open(file_path, "w", encoding="utf-8") as f:
             for d in data:
                 f.write(json.dumps(d) + "\n")
     else:
