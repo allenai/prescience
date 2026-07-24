@@ -16,6 +16,7 @@ peft==0.17.1
 pyarrow
 pytz
 requests
+rlms
 rouge_score
 scikit-learn
 scipy

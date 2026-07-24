@@ -20,6 +20,7 @@ def convert_json_to_parquet(input_path, output_path):
         ('title', pa.string()),
         ('abstract', pa.string()),
         ('categories', pa.list_(pa.string())),
+        ('topics', pa.list_(pa.string())),
         ('roles', pa.list_(pa.string())),
         ('key_references', pa.list_(pa.struct([
             ('corpus_id', pa.string()),
@@ -49,6 +50,27 @@ def convert_dict_to_jsonl(data_dict, output_path):
             entry = {'key': key, 'value': value}
             f.write(json.dumps(entry) + '\n')
 
+def union_per_key(train_map, test_map):
+    """Per-key order-preserving union of two dicts whose values are list-or-None."""
+    merged = {}
+    for sd in set(train_map) | set(test_map):
+        train_v = train_map.get(sd)
+        test_v = test_map.get(sd)
+        if train_v is None and test_v is None:
+            merged[sd] = None
+        elif train_v is None:
+            merged[sd] = test_v
+        elif test_v is None:
+            merged[sd] = train_v
+        else:
+            seen, out = set(), []
+            for x in train_v + test_v:
+                if x not in seen:
+                    seen.add(x)
+                    out.append(x)
+            merged[sd] = out
+    return merged
+
 def main():
     parser = argparse.ArgumentParser("Prepare PreScience corpus for HuggingFace upload")
     parser.add_argument("--train_dir", type=str, default="data/corpus/train")
@@ -76,10 +98,10 @@ def main():
     train_sd2pubs, _ = utils.load_json(os.path.join(args.train_dir, "sd2publications.json"))
     test_sd2pubs, _ = utils.load_json(os.path.join(args.test_dir, "sd2publications.json"))
 
-    all_sd2og = {**train_sd2og, **test_sd2og}
-    all_sd2pubs = {**train_sd2pubs, **test_sd2pubs}
+    all_sd2og = union_per_key(train_sd2og, test_sd2og)
+    all_sd2pubs = union_per_key(train_sd2pubs, test_sd2pubs)
 
-    utils.log(f"Merged author mappings: {len(all_sd2og)} unique authors")
+    utils.log(f"Merged author mappings: {len(all_sd2og)} unique authors (per-key union across splits)")
 
     convert_dict_to_jsonl(all_sd2og, os.path.join(args.output_dir, "author_disambiguation.jsonl"))
     convert_dict_to_jsonl(all_sd2pubs, os.path.join(args.output_dir, "author_publications.jsonl"))

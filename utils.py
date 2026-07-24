@@ -643,6 +643,29 @@ def calculate_precision_recall_f1(retrieved_ids, relevant_ids):
 
 
 
+##### Date Utilities #####
+def month_key(date_str):
+    """Return 'YYYY-MM' from a 'YYYY-MM-DD' date string."""
+    return date_str[:7]
+
+def enumerate_months(start_date, end_date):
+    """Return sorted list of 'YYYY-MM' month keys covered by [start_date, end_date)."""
+    months = set()
+    y, m = int(start_date[:4]), int(start_date[5:7])
+    end_y, end_m = int(end_date[:4]), int(end_date[5:7])
+    while (y, m) < (end_y, end_m):
+        months.add(f"{y:04d}-{m:02d}")
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+    return sorted(months)
+
+def filter_by_date_range(papers, start_date, end_date):
+    """Return papers with start_date <= paper.date < end_date."""
+    return [p for p in papers if start_date <= p["date"] < end_date]
+
+
 ##### Data Processing #####
 def get_intersection(list_of_lists):
     intersection = None

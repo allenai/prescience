@@ -13,7 +13,7 @@
 
 ## Overview
 
-Can AI systems trained on the scientific record up to a fixed point in time forecast the scientific advances that follow? PreScience decomposes the research process into four interdependent generative tasks and evaluates models on a curated dataset of 98,000 AI-related arXiv papers (Oct 2023 -- Oct 2025) with disambiguated author identities, temporally aligned scholarly metadata, and a structured graph of 502,000 total papers. We decompose the prediction of a single scientific advance into the following four interdependent prediction problems:
+Can AI systems trained on the existing scientific record forecast the advances that will follow? We introduce PreScience, a dataset and benchmark for scientific forecasting built around 98K recent AI research papers, together with companion papers covering author publication histories and citation links, yielding 502K papers in total. The resulting paper records include titles, abstracts, disambiguated author identities, influential references, topic labels, citation trajectories, and metadata snapshotted to respect temporal cutoffs. We instantiate seven exemplar tasks: five paper-anchored tasks—contribution generation, collaborator prediction, prior work selection, citation count prediction, and future combination prediction—and two aggregate topic trend forecasting variants. We develop baselines ranging from simple heuristics and embedding methods to frontier language models and agentic systems, and introduce LACER, an LLM-based metric for evaluating similarity of generated contribution descriptions that agrees better with human judgments than existing metrics. Finally, we compose task models to generate a 12-month synthetic corpus and find that the resulting papers to be systematically less diverse and less novel than human-authored research from the same period.
 
 <img width="721" height="326" alt="image" src="https://github.com/user-attachments/assets/1698f74b-fd49-4312-a39c-5429b362a3ed" />
 
@@ -22,12 +22,15 @@ Can AI systems trained on the scientific record up to a fixed point in time fore
 |------|-------------|---------|
 | Collaborator Prediction | Predict the remaining authors on a future paper given a seed author | nDCG, R-Precision |
 | Prior Work Selection | Predict the key references of a future paper given its authors | nDCG, R-Precision |
-| Contribution Generation | Generate a paper's title and abstract given its authors and key references | LACERScore, ROUGE-L, BERTScore |
-| Impact Prediction | Predict a paper's 12-month cumulative citation count | MAE, Pearson, Spearman |
+| Contribution Generation | Generate a paper's title and abstract given its authors and key references | LACER, ROUGE-L, BERTScore |
+| Citation Count Prediction | Predict a paper's 12-month cumulative citation count | MAE, Pearson, Spearman |
+| Future Combination Prediction | Rank prior papers by how often they will be jointly cited as influential references with a target paper in future work | nDCG, R-Precision |
+| Topic Trend Forecasting (Unary) | Predict the change in each topic's share of papers between train and test periods | R², Pearson |
+| Topic Trend Forecasting (Pair) | Predict the change in each topic-pair's share between train and test periods | R², Pearson |
 
 ## Dataset
 
-The dataset is hosted on [HuggingFace](https://huggingface.co/datasets/allenai/prescience) and contains 98k target papers across train (Oct 2023--2024) and test (Oct 2024--2025) splits, along with 400k+ companion papers (references and author publication histories). See the [dataset card](https://huggingface.co/datasets/allenai/prescience) for full schema and statistics.
+The dataset is hosted on [HuggingFace](https://huggingface.co/datasets/allenai/prescience) and contains 98k target papers across train (Oct 2023--Sept 2024) and test (Oct 2024--Sept 2025) splits, along with 400k+ companion papers (references and author publication histories). See the [dataset card](https://huggingface.co/datasets/allenai/prescience) for full schema and statistics.
 
 ## Setup
 
@@ -344,7 +347,11 @@ python3 -m dataset.corpus.add_citation_metadata --input_dir data/corpus/train --
 # Stage 6: Replace titles/abstracts with official arXiv versions
 python3 -m dataset.corpus.replace_title_abstracts_using_snapshot --input_dir data/corpus/train --output_dir data/corpus/train
 
-# Stage 7: Compute embeddings
+# Stage 7: Assign topic labels to target papers and attach them to the corpus
+python3 -m dataset.corpus.assign_topics --splits train --topics_path dataset/corpus/topics_list_v5.txt --model gpt-5-2025-08-07 --output_path data/task_topic_growth_prediction/topic_labels.v5.gpt-5.4.full.jsonl
+python3 -m dataset.corpus.add_topics --input_dir data/corpus/train --output_dir data/corpus/train --topics_path data/task_topic_growth_prediction/topic_labels.v5.gpt-5.4.full.jsonl --overwrite
+
+# Stage 8: Compute embeddings
 python3 -m dataset.embeddings.compute_paper_embeddings --split train --embedding_type gtr --output_dir data/corpus/train
 python3 -m dataset.embeddings.compute_paper_embeddings --split train --embedding_type specter2 --output_dir data/corpus/train
 python3 -m dataset.embeddings.compute_paper_embeddings --split train --embedding_type grit --output_dir data/corpus/train

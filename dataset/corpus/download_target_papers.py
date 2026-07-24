@@ -59,7 +59,7 @@ def main():
     parser.add_argument("--arxiv_snapshot_path", type=str, default="data/arxiv_snapshot/arxiv-metadata-oai-snapshot.json", help="Path to arXiv metadata snapshot")
     parser.add_argument("--start_date", type=str, default="2024-10-01", help="Start date for target papers (YYYY-MM-DD)")
     parser.add_argument("--end_date", type=str, default="2025-10-01", help="End date for target papers (YYYY-MM-DD)")
-    parser.add_argument("--categories", nargs="+", default=["cs.CL", "cs.LG", "cs.AI", "cs.ML", "cs.CV", "cs.IR", "cs.NE"], help="arXiv categories to include")
+    parser.add_argument("--categories", nargs="+", default=["cs.CL", "cs.LG", "cs.AI", "cs.CV", "cs.IR", "cs.NE"], help="arXiv categories to include")
     parser.add_argument("--output_dir", type=str, default="data/corpus/test", help="Output directory for target papers")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing output")
     args = parser.parse_args()
