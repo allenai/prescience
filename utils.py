@@ -14,7 +14,7 @@ import logging
 import multiprocessing
 import numpy as np
 from tqdm import tqdm
-from typing import Any
+from typing import Any, Callable
 from collections import defaultdict
 
 from transformers import AutoTokenizer
@@ -1139,3 +1139,97 @@ def embed_on_gpus_parallel(document_list, embedding_type, quiet=False):
                 "query": query_embeddings_all[i].reshape(1,-1)
             })
     return embedding_dicts_list
+
+
+####### AWS Athena (internal; restored from a6d3e18 for rebuttal workstream F) #######
+
+def submit_athena_query(query, database: str):
+    import boto3
+    import awswrangler
+    boto3.setup_default_session(
+        region_name=os.getenv("AWS_DEFAULT_REGION"), 
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), 
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    )
+    
+    try:
+        records = awswrangler.athena.read_sql_query(query, database).to_dict(orient="records")
+    except Exception as e:
+        logging.error(e)
+        raise e
+    return records
+    
+def submit_athena_queries_batched(ids: list, query_func: Callable[[list], str], database: str, batch_size: int, max_workers = None, progress_desc: str = "Submitting Athena queries"):
+    import boto3
+    import awswrangler
+    import concurrent.futures
+    boto3.setup_default_session(
+        region_name=os.getenv("AWS_DEFAULT_REGION"), 
+        aws_access_key_id=os.getenv("AWS_ACCESS_KEY_ID"), 
+        aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY")
+    )
+    
+    def batcher(iterable, size: int):
+        iterable = list(set(iterable))  # deduplicate
+        return [iterable[i:i + size] for i in range(0, len(iterable), size)]
+    
+    def submit_query(query_func: Callable[[list], str], batch: list, database: str):
+        query = query_func(batch)
+        try:
+            records = awswrangler.athena.read_sql_query(query, database).to_dict(orient="records")
+        except Exception as e:
+            logging.error(e)
+            if len(batch) == 1:
+                return [None]
+            # reduce the batch size and retry
+            new_batch_size = max(1, len(batch) // 2)
+            logging.info(f"Reducing batch size to {new_batch_size} and retrying")
+            
+            records = []
+            records.extend(submit_query(query_func, batch[:new_batch_size], database))
+            records.extend(submit_query(query_func, batch[new_batch_size:], database))
+        return records
+    
+    records = []
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for batch in batcher(ids, batch_size):
+            future = executor.submit(submit_query, query_func, batch, database)
+            futures.append(future)
+        
+        for future in tqdm(concurrent.futures.as_completed(futures), total=len(futures), desc=progress_desc):
+            results = future.result()
+            records.extend(results)
+        
+    return records
+
+
+
+
+
+def retain_useful_fields_from_arxiv_records(records):
+    useful_data = []
+    for record in records:
+        try:
+            try:
+                publication_date_dict = record["metadata"]["publication_date"]
+                publication_date = str(int(publication_date_dict["year"])) + "-" + \
+                    str(int(publication_date_dict["month"])).zfill(2) + "-" + \
+                    str(int(publication_date_dict["day"])).zfill(2)
+            except:
+                publication_date = str(record["created"])[:10]
+                
+            useful_record = {
+                "corpus_id": str(record["id"]),
+                "arxiv_id": record["metadata"]["external_ids"]["arxiv"].strip(),
+                "date": min(str(record["created"])[:10], publication_date),
+                "categories": record["categories"].strip().split(" "),
+                "title": record["metadata"]["title"].strip(),
+                "abstract": record["metadata"]["abstract"].strip()
+            }
+            useful_data.append(useful_record)
+        except Exception as e:
+            log(f"Error processing record: {e}")
+            continue
+    return useful_data
+
