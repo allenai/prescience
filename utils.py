@@ -171,6 +171,23 @@ def load_corpus(hf_repo_id="allenai/prescience", split="test", embeddings_dir=No
         - sd2publications: Dict mapping author_id -> list of corpus_ids (None if load_sd2publications=False)
         - all_embeddings: Dict mapping corpus_id -> embedding (None if embedding_type is None)
     """
+    # Local-directory mode: if hf_repo_id points at a local corpus dir (built offline, e.g. the
+    # bio/physics transfer corpora), load all_papers.json + sd2publications.json + embeddings from disk.
+    if os.path.isdir(hf_repo_id) and os.path.exists(os.path.join(hf_repo_id, "all_papers.json")):
+        log(f"Loading corpus from local directory: {hf_repo_id}")
+        all_papers, _ = load_json(os.path.join(hf_repo_id, "all_papers.json"))
+        log(f"Loaded {len(all_papers)} papers from local corpus")
+        sd2publications = None
+        if load_sd2publications:
+            sd2publications, _ = load_json(os.path.join(hf_repo_id, "sd2publications.json"))
+            log(f"Loaded author mappings for {len(sd2publications)} authors from local corpus")
+        all_embeddings = None
+        if embedding_type and embeddings_dir:
+            embedding_path = os.path.join(embeddings_dir, f"all_papers.{embedding_type}_embeddings.pkl")
+            all_embeddings, _ = load_pkl(embedding_path)
+            log(f"Loaded {len(all_embeddings)} embeddings of type {embedding_type}")
+        return all_papers, sd2publications, all_embeddings
+
     from huggingface_hub import hf_hub_download
     log(f"Loading corpus from HuggingFace: {hf_repo_id}")
     dataset = load_dataset(hf_repo_id)
